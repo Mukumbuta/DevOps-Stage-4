@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`frontend.local`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+    networks:
+      - traefik_net
+
+  frontend-nginx:
+    image: nginx:alpine
+    container_name: frontend-nginx
+    depends_on:
+      - frontend
+    volumes:
+      - ./frontend/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "8081:80"
+    networks:
+      - traefik_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend-nginx.rule=Host(`frontend.local`)"
+      - "traefik.http.routers.frontend-nginx.entrypoints=web"
+      - "traefik.http.routers.frontend-nginx.service=frontend-nginx-service"
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: always
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Optional dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik/traefik.yml:/etc/traefik/traefik.yml"
+    networks:
+      - traefik_net
+
+  auth-api:
+    build: ./auth-api
+    container_name: auth-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=Host(`auth.local`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+    networks:
+      - traefik_net
+
+  todos-api:
+    build: ./todos-api
+    container_name: todos-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.todos.rule=Host(`todos.local`)"
+      - "traefik.http.routers.todos.entrypoints=web"
+    networks:
+      - traefik_net
+
+  users-api:
+    build: ./users-api
+    container_name: users-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.users.rule=Host(`users.local`)"
+      - "traefik.http.routers.users.entrypoints=web"
+    networks:
+      - traefik_net
+
+networks:
+  traefik_net:
+    driver: bridge
